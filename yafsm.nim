@@ -1,3 +1,5 @@
+# this is still a work in progress
+
 type
   State* = tuple
     init: (proc())
@@ -10,6 +12,7 @@ type
     armed: bool
   FSM* = object
     state: State
+    dummy: State
     events: seq[Events]
     running: bool
     sid, eid: int
@@ -19,7 +22,8 @@ method init*(this: var FSM) {.base.} =
   this.events = @[]
   this.running = true
 
-method set(this: var FSM, state: State) {.base.} =
+method set*(this: var FSM, state: State) {.base.} =
+  ## sets the current state
   this.state = state
   if this.state.init != nil:
     this.state.init()
@@ -32,10 +36,9 @@ method run(this: var FSM) {.base.} =
   while this.running:
     for e in this.events.mitems:
       if e.armed:
-        if this.state == e.event.pre:
+        if e.event.pre == this.dummy or e.event.pre == this.state:
           this.set(e.event.post)
-        e.armed = false
-        break
+          e.armed = false
     if this.state.update != nil:
       this.state.update()
     else:
@@ -48,14 +51,22 @@ method start*(this: var FSM, state: State) {.base.} =
 
 method trigger*(this: var FSM, event: Event) {.base.} =
   ## trigger event - events are unarmed after triggered
-  for i, e in this.events.mpairs:
+  for e in this.events.mitems:
     if e.event == event:
-      this.events[i].armed = true
+      e.armed = true
       break
 
-method register*(this: var FSM; s1, s2: State): Event {.base.} =
+method register*(this: var FSM; s1: State, s2: State = this.dummy): Event {.base.} =
   ## register event indicating state transition
-  result = (s1, s2)
+  ## if both s1 and s2 are provided then
+  ## states will only transition from s1 -> s2
+  ## if current state is s1
+  ## if only s1 provided, current state will
+  ## always transition to s1 when triggered
+  if s2 == this.dummy:
+    result = (s2, s1)
+  else:
+    result = (s1, s2)
   var e: Events
   e.event = result
   e.armed = false
@@ -78,6 +89,7 @@ when isMainModule:
     m: FSM
     s1, s2, s3: State
     e1, e2, e3: Event
+    counter = 0
 
   # fsm must be initiated before defining states and registering events
   m.init()
@@ -103,7 +115,6 @@ when isMainModule:
       echo "initing s2"
       m.destroy(e1)  # obsolete events can be destroyed
 
-    var counter = 0
     s2.update = proc() =
       echo "updating s2"
       inc counter
@@ -120,7 +131,7 @@ when isMainModule:
 
   # register events after states have been defined above
   # indicates transition when triggered:
-  e1 = m.register(s1, s2)  # s1 -> s2
+  e1 = m.register(s3)      #  * -> s3
   e2 = m.register(s2, s3)  # s2 -> s3
   e3 = m.register(s3, s2)  # s3 -> s2
 
