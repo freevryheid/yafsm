@@ -151,8 +151,7 @@ when isMainModule:
   # indicates transition when triggered:
   e1 = m.register(s1, s2)  # s1 -> s2
   e2 = m.register(s2, s3)  # s2 -> s3
-  e3 = m.register(s4)  # s3 -> s4
-
+  e3 = m.register(s4)      # * -> s4
   # transitioning to an undefined state (s4.update) stops the machine
 
   m.start(s1)
