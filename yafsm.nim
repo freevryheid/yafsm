@@ -2,6 +2,7 @@ type
   State* = tuple
     init: proc()
     update: proc()
+    draw: proc()
     exit: proc()
   Event* = tuple
     pre: State
@@ -14,7 +15,6 @@ type
     events: seq[Events]
     deli: seq[int]
     running: bool
-    sid, eid: int
 
 method init*(this: var FSM) {.base.} =
   ## initiate the fsm - do this before defining states and registing events
@@ -45,6 +45,8 @@ method run(this: var FSM) {.base.} =
       this.events.delete(this.deli.pop())
     if this.state.update != nil:
       this.state.update()
+    elif this.state.draw != nil:
+      this.state.draw()
     else:
       this.stop()
 
