@@ -1,9 +1,8 @@
-# this is still a work in progress
-
 type
   State* = tuple
-    init: (proc())
-    update: (proc())
+    init: proc()
+    update: proc()
+    exit: proc()
   Event* = tuple
     pre: State
     post: State
@@ -12,7 +11,6 @@ type
     armed: bool
   FSM* = object
     state: State
-    dummy: State
     events: seq[Events]
     running: bool
     sid, eid: int
@@ -24,6 +22,8 @@ method init*(this: var FSM) {.base.} =
 
 method set*(this: var FSM, state: State) {.base.} =
   ## sets the current state
+  if this.state.exit != nil:
+    this.state.exit()
   this.state = state
   if this.state.init != nil:
     this.state.init()
@@ -36,7 +36,7 @@ method run(this: var FSM) {.base.} =
   while this.running:
     for e in this.events.mitems:
       if e.armed:
-        if e.event.pre == this.dummy or e.event.pre == this.state:
+        if e.event.pre == e.event.post or e.event.pre == this.state:
           this.set(e.event.post)
           e.armed = false
     if this.state.update != nil:
@@ -50,23 +50,27 @@ method start*(this: var FSM, state: State) {.base.} =
   this.run()
 
 method trigger*(this: var FSM, event: Event) {.base.} =
-  ## trigger event - events are unarmed after triggered
+  ## trigger event - events are unarmed on occurance
   for e in this.events.mitems:
     if e.event == event:
       e.armed = true
       break
 
-method register*(this: var FSM; s1: State, s2: State = this.dummy): Event {.base.} =
+method register*(this: var FSM; s1, s2: State): Event {.base.} =
   ## register event indicating state transition
   ## if both s1 and s2 are provided then
   ## states will only transition from s1 -> s2
-  ## if current state is s1
+  ## only if current state is s1
+  result = (s1,s2)
+  var e: Events
+  e.event = result
+  e.armed = false
+  this.events.add(e)
+
+method register*(this: var FSM; s1: State): Event {.base.} =
   ## if only s1 provided, current state will
   ## always transition to s1 when triggered
-  if s2 == this.dummy:
-    result = (s2, s1)
-  else:
-    result = (s1, s2)
+  result = (s1, s1)
   var e: Events
   e.event = result
   e.armed = false
@@ -87,7 +91,7 @@ when isMainModule:
   # declare fsm, states and events
   var
     m: FSM
-    s1, s2, s3: State
+    s1, s2, s3, s4: State
     e1, e2, e3: Event
     counter = 0
 
@@ -97,9 +101,7 @@ when isMainModule:
   # states are defined after fsm initiated
   # blocks used here for partitioning only
   # block are not required
-
   # states are defined in terms of init and update functions
-  #
   block S1:  # this first state
 
     s1.init = proc() =
@@ -109,19 +111,21 @@ when isMainModule:
       echo "updating s1"
       m.trigger(e1)
 
+    s1.exit = proc() =
+      echo "bye from s1"
+
   block S2:  # the second state
 
     s2.init = proc() =
       echo "initing s2"
-      m.destroy(e1)  # obsolete events can be destroyed
+      #m.destroy(e1)  # obsolete events can be destroyed
 
     s2.update = proc() =
       echo "updating s2"
       inc counter
-      if counter < 100:
+      echo "counter: ", counter
+      if counter >= 5:
         m.trigger(e2)
-      else:
-        m.stop()
 
   block S3:  # the third state (no init)
 
@@ -129,11 +133,17 @@ when isMainModule:
       echo "updating s3"
       m.trigger(e3)
 
+  block S4:  # the fourth state (no update)
+
+    s4.init = proc() =
+      echo "initing s4"
+
+
   # register events after states have been defined above
   # indicates transition when triggered:
-  e1 = m.register(s3)      #  * -> s3
+  e1 = m.register(s1, s2)  # s1 -> s2
   e2 = m.register(s2, s3)  # s2 -> s3
-  e3 = m.register(s3, s2)  # s3 -> s2
+  e3 = m.register(s4)  # s3 -> s4
 
   # transitioning to an undefined state (s4.update) stops the machine
 
