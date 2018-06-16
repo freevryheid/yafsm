@@ -12,12 +12,14 @@ type
   FSM* = object
     state: State
     events: seq[Events]
+    deli: seq[int]
     running: bool
     sid, eid: int
 
 method init*(this: var FSM) {.base.} =
   ## initiate the fsm - do this before defining states and registing events
   this.events = @[]
+  this.deli = @[]
   this.running = true
 
 method set*(this: var FSM, state: State) {.base.} =
@@ -39,13 +41,15 @@ method run(this: var FSM) {.base.} =
         if e.event.pre == e.event.post or e.event.pre == this.state:
           this.set(e.event.post)
           e.armed = false
+    while len(this.deli) > 0:
+      this.events.delete(this.deli.pop())
     if this.state.update != nil:
       this.state.update()
     else:
       this.stop()
 
 method start*(this: var FSM, state: State) {.base.} =
-  ## crank up the fsm indicating the start state
+  ## start the fsm indicating the first state
   this.set(state)
   this.run()
 
@@ -78,13 +82,11 @@ method register*(this: var FSM; s1: State): Event {.base.} =
 
 method destroy*(this: var FSM, event: Event) {.base.} =
   ## destroy obsolete events as these are sequenced
-  try:
-    for i, e in this.events.mpairs:
-      if e.event == event:
-        this.events.delete(i)
-        break
-  except:
-    discard
+  ## this marks them for deletion in the run loop
+  for i, e in this.events.mpairs:
+    if e.event == event:
+      this.deli.add(i)
+      break
 
 when isMainModule:
 
@@ -133,10 +135,15 @@ when isMainModule:
       echo "updating s3"
       m.trigger(e3)
 
+    s3.exit = proc() =
+      echo "exiting s3"
+      m.destroy(e1)
+
   block S4:  # the fourth state (no update)
 
     s4.init = proc() =
       echo "initing s4"
+      m.destroy(e1)
 
   # register events after states have been defined above
   # indicates transition when triggered:
