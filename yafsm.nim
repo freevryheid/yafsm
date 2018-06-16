@@ -138,7 +138,6 @@ when isMainModule:
     s4.init = proc() =
       echo "initing s4"
 
-
   # register events after states have been defined above
   # indicates transition when triggered:
   e1 = m.register(s1, s2)  # s1 -> s2
