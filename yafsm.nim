@@ -17,13 +17,13 @@ type
     running: bool
 
 method init*(this: var FSM) {.base.} =
-  ## initiate the fsm - do this before defining states and registing events
+  ## Initiate the fsm - do this before defining states and registing events.
   this.events = @[]
   this.deli = @[]
   this.running = true
 
 method set*(this: var FSM, state: State) {.base.} =
-  ## sets the current state
+  ## Sets the current state.
   if this.state.exit != nil:
     this.state.exit()
   this.state = state
@@ -31,7 +31,7 @@ method set*(this: var FSM, state: State) {.base.} =
     this.state.init()
 
 method stop*(this: var FSM) {.base.} =
-  ## stop the fsm
+  ## Stop the FSM.
   this.running = false
 
 method run(this: var FSM) {.base.} =
@@ -51,22 +51,22 @@ method run(this: var FSM) {.base.} =
       this.stop()
 
 method start*(this: var FSM, state: State) {.base.} =
-  ## start the fsm indicating the first state
+  ## Start the FSM indicating the first state.
   this.set(state)
   this.run()
 
 method trigger*(this: var FSM, event: Event) {.base.} =
-  ## trigger event - events are unarmed on occurance
+  ## Trigger event - events are unarmed on occurance.
   for e in this.events.mitems:
     if e.event == event:
       e.armed = true
       break
 
 method register*(this: var FSM; s1, s2: State): Event {.base.} =
-  ## register event indicating state transition
-  ## if both s1 and s2 are provided then
+  ## Register event indicating state transition.
+  ## If both s1 and s2 are provided then
   ## states will only transition from s1 -> s2
-  ## only if current state is s1
+  ## and only if current state is s1.
   result = (s1,s2)
   var e: Events
   e.event = result
@@ -74,8 +74,8 @@ method register*(this: var FSM; s1, s2: State): Event {.base.} =
   this.events.add(e)
 
 method register*(this: var FSM; s1: State): Event {.base.} =
-  ## if only s1 provided, current state will
-  ## always transition to s1 when triggered
+  ## If only s1 provided, current state will
+  ## always transition to s1 when triggered.
   result = (s1, s1)
   var e: Events
   e.event = result
@@ -83,8 +83,8 @@ method register*(this: var FSM; s1: State): Event {.base.} =
   this.events.add(e)
 
 method destroy*(this: var FSM, event: Event) {.base.} =
-  ## destroy obsolete events as these are sequenced
-  ## this marks them for deletion in the run loop
+  ## Destroy obsolete events as these are sequenced.
+  ## This marks them for deletion in the run loop.
   for i, e in this.events.mpairs:
     if e.event == event:
       this.deli.add(i)
